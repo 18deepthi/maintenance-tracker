@@ -145,7 +145,8 @@ class WorkOrderControllerTest {
         when(workOrderService.listWorkOrders(any(WorkOrderFilterParams.class), any(Pageable.class)))
                 .thenReturn(pageResponse);
 
-        mockMvc.perform(get("/api/v1/work-orders?status=OPEN&assignedTo=eng1&equipmentName=Pump&equipmentId=EQ-1&page=0&size=20"))
+        mockMvc.perform(get(
+                "/api/v1/work-orders?status=OPEN&assignedTo=eng1&equipmentName=Pump&equipmentId=EQ-1&page=0&size=20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(1L))
                 .andExpect(jsonPath("$.page").value(0))
@@ -334,7 +335,8 @@ class WorkOrderControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /api/v1/work-orders/{id}/assignment returns 409 Conflict when assignment change rejected (FR-5)")
+    @DisplayName("PATCH /api/v1/work-orders/{id}/assignment returns 409 Conflict "
+            + "when assignment change rejected (FR-5)")
     void updateAssignment_whenRejected_shouldReturn409Conflict() throws Exception {
         UpdateAssignmentRequest request = new UpdateAssignmentRequest(null);
         when(workOrderService.updateAssignment(eq(1L), any(UpdateAssignmentRequest.class)))

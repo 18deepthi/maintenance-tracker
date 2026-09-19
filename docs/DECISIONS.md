@@ -55,3 +55,8 @@ This document records the architectural and design decisions made throughout the
 ### ADR-009: Optimistic Concurrency Control via JPA @Version
 - **Decision**: Add a `@Version Long version` attribute to the `WorkOrder` entity, mapped to a `version` column in the database. When concurrent updates conflict, Spring Data JPA / Hibernate raises an `ObjectOptimisticLockingFailureException`, which is caught and mapped to HTTP 409 Conflict. In v1, clients do not send a version token in request payloads, so conflict detection operates between concurrent server transactions only; client-side ETag / version tokens are deferred to future API iterations.
 - **Rationale**: Prevents silent lost updates and race conditions during concurrent status transitions or assignment updates without requiring heavy database row locking (pessimistic locks), maintaining high throughput and transactional safety.
+---
+
+### ADR-010: GitHub Actions CI Pipeline & Containerized Multi-Stage Dockerfile (NFR-4, NFR-5)
+- **Decision**: Implement an automated GitHub Actions CI workflow triggered on all pull requests and pushes to `main` running `mvn clean verify` with strict Checkstyle enforcement (`failOnViolation=true` including test sources) and test report artifact upload on failure. Provide a containerized multi-stage `Dockerfile` utilizing dependency pre-fetching (`mvn dependency:go-offline`), a minimal JRE 17 Alpine runtime, non-root execution (`appuser`), and default in-memory H2 persistence.
+- **Rationale**: Guarantees automated regression testing and style compliance on every contribution before merging, while the containerized multi-stage build creates a minimal, secure deployment image that runs out-of-the-box without requiring an external database.

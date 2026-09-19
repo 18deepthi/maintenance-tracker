@@ -94,7 +94,8 @@ class GlobalExceptionHandlerTest {
     @DisplayName("400 Bad Request: invalid sort field returns 400")
     void handleSortException_invalidSortField_shouldReturn400() throws Exception {
         when(workOrderService.listWorkOrders(any(), any()))
-                .thenThrow(new InvalidSortFieldException("Invalid sort field: 'banana'. Allowed sort fields are: [id]"));
+                .thenThrow(new InvalidSortFieldException(
+                        "Invalid sort field: 'banana'. Allowed sort fields are: [id]"));
         mockMvc.perform(get("/api/v1/work-orders?sort=banana"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
