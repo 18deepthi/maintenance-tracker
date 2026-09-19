@@ -1,5 +1,7 @@
 # Maintenance Work-Order Tracker
 
+[![CI](https://github.com/18deepthi/maintenance-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/18deepthi/maintenance-tracker/actions/workflows/ci.yml)
+
 > **Project Disclaimer**: This is a self-directed portfolio project designed to demonstrate clean backend engineering practices targeting entry-level Java development roles. It operates entirely on synthetic sample data for industrial equipment maintenance. It contains no simulated production metrics, artificial user scale, or claims of high-load deployment.
 
 ---
@@ -16,11 +18,13 @@ The **Maintenance Work-Order Tracker** is a Spring Boot REST API for managing in
 - **Framework**: Spring Boot 3.3.x
 - **Persistence**: Spring Data JPA, Hibernate 6
 - **Databases**: 
-  - H2 Database (in-memory for local development and automated testing)
+  - H2 Database (in-memory for local development, container runs, and automated testing)
   - PostgreSQL (target database for production deployment)
 - **Testing**: JUnit 5, Mockito, AssertJ, Spring Boot Test (78 automated tests)
-- **Code Quality**: Maven Checkstyle Plugin (0 violations)
+- **Code Quality**: Maven Checkstyle Plugin (0 violations, strict enforcement)
 - **Documentation**: OpenAPI 3 / Swagger UI (`springdoc-openapi`)
+- **Containerization**: Multi-stage Dockerfile (JRE 17 Alpine, non-root execution)
+- **Continuous Integration**: GitHub Actions (automated build, test, and style verification)
 
 ---
 
@@ -86,23 +90,29 @@ All error responses across the API return a uniform JSON schema:
 
 ---
 
-## Interactive API Documentation (Swagger UI)
+## Run with Docker
 
-Interactive OpenAPI 3 documentation is automatically generated via SpringDoc OpenAPI.
+The application includes a containerized multi-stage `Dockerfile` with layer caching, non-root user execution, and default in-memory H2 database configuration.
 
-### Running the Application
+### Build Image
 
 ```bash
-mvn spring-boot:run
+docker build -t maintenance-tracker:latest .
 ```
 
-Once started, access:
+### Run Container
+
+```bash
+docker run -p 8080:8080 maintenance-tracker:latest
+```
+
+Once started, the API and Swagger UI are accessible at:
 - **Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
-- **OpenAPI 3 JSON Specification**: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+- **OpenAPI Specification**: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
 
 ---
 
-## Getting Started & Testing
+## Getting Started & Local Testing
 
 ### Prerequisites
 
@@ -112,9 +122,12 @@ Once started, access:
 ### Build & Run Tests
 
 ```bash
-# Compile and run full test suite (78 tests)
-mvn clean test
+# Compile, run full test suite (78 tests), and verify Checkstyle quality gates
+mvn clean verify
+```
 
-# Run Checkstyle audit (0 violations)
-mvn checkstyle:check
+### Run Application Locally
+
+```bash
+mvn spring-boot:run
 ```
