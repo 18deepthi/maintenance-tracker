@@ -31,3 +31,15 @@ This document records the architectural and design decisions made throughout the
 ### ADR-005: Custom PageResponse DTO & Page Size Upper Bound
 - **Decision**: Encapsulate paginated list responses inside a dedicated `PageResponse<T>` DTO rather than returning Spring Data's `Page<T>` directly, while clamping page size to a maximum of 100 in the service layer.
 - **Rationale**: Decouples API client contracts from Spring-specific serialization formats, prevents unexpected contract breakage on framework upgrades, and safeguards server memory against unbounded query loads.
+
+---
+
+### ADR-006: Centralized State Transition & Assignment Lifecycle Rules (FR-3, FR-4, FR-5)
+- **Decision**: Model work order lifecycle transitions and assignment rules strictly in the Service layer using an immutable transition map (`ALLOWED_TRANSITIONS`) and explicit validation checks, throwing `InvalidWorkOrderStateException` (HTTP 409 Conflict) on violations.
+- **Rationale**: Keeps state progression strictly one-way (`OPEN -> IN_PROGRESS -> COMPLETED -> CLOSED`) and prevents invalid transitions, unassigned execution, or post-completion mutations at a single source of truth without scattering state logic across controllers or entities.
+
+---
+
+### ADR-007: Composable Query Filtering via JPA Specifications & Wildcard Escaping (FR-9)
+- **Decision**: Implement dynamic query filtering across `status`, `assignedTo`, `equipmentName`, and `equipmentId` using Spring Data `JpaSpecificationExecutor` with composable predicates. Match `equipmentName` using case-insensitive contains (with `%` and `_` wildcard characters escaped to treat them as literals), while matching `equipmentId` and `assignedTo` using exact case-insensitive equality.
+- **Rationale**: Avoids a combinatorial explosion of derived repository query methods, ensures full composability with pagination and sorting, and eliminates SQL injection or accidental wildcard pattern expansion when searching equipment names.
