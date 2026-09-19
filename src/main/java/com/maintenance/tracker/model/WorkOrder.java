@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
@@ -44,6 +45,9 @@ public class WorkOrder {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private WorkOrderStatus status = WorkOrderStatus.OPEN;
+
+    @Version
+    private Long version;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -151,6 +155,10 @@ public class WorkOrder {
 
     public void setStatus(WorkOrderStatus status) {
         this.status = status;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 
     public Instant getCreatedAt() {
