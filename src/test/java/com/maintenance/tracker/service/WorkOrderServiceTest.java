@@ -180,7 +180,8 @@ class WorkOrderServiceTest {
         );
 
         when(workOrderRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(workOrderRepository.saveAndFlush(any(WorkOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(workOrderRepository.saveAndFlush(any(WorkOrder.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         WorkOrderResponse updatedResponse = workOrderService.updateWorkOrderDetails(1L, updateRequest);
 
@@ -195,7 +196,8 @@ class WorkOrderServiceTest {
     @ParameterizedTest
     @EnumSource(value = WorkOrderStatus.class, names = {"IN_PROGRESS", "COMPLETED", "CLOSED"})
     @DisplayName("updateWorkOrderDetails throws InvalidWorkOrderStateException when not in OPEN status (FR-8)")
-    void updateWorkOrderDetails_whenStatusIsNotOpen_shouldThrowInvalidWorkOrderStateException(WorkOrderStatus nonOpenStatus) {
+    void updateWorkOrderDetails_whenStatusIsNotOpen_shouldThrowInvalidWorkOrderStateException(
+            WorkOrderStatus nonOpenStatus) {
         WorkOrder existing = new WorkOrder("Title", "Desc", "Eq", "E-1", "Loc", "sup1", "eng1");
         existing.setId(2L);
         existing.setStatus(nonOpenStatus);
@@ -231,7 +233,8 @@ class WorkOrderServiceTest {
     // 16-pair exhaustive parameterized matrix test (FR-3, FR-4)
     @ParameterizedTest(name = "Transition from {0} to {1} should succeed: {2}")
     @MethodSource("allStatusPairs")
-    @DisplayName("16-pair status transition matrix: only OPEN->IN_PROGRESS, IN_PROGRESS->COMPLETED, COMPLETED->CLOSED succeed")
+    @DisplayName("16-pair status transition matrix: "
+            + "only OPEN->IN_PROGRESS, IN_PROGRESS->COMPLETED, COMPLETED->CLOSED succeed")
     void updateWorkOrderStatus_allStatusPairs_shouldEnforceStrictOneWayTransitions(
             WorkOrderStatus currentStatus, WorkOrderStatus targetStatus, boolean shouldSucceed) {
 
@@ -243,7 +246,8 @@ class WorkOrderServiceTest {
 
         if (shouldSucceed) {
             when(workOrderRepository.saveAndFlush(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
-            WorkOrderResponse response = workOrderService.updateWorkOrderStatus(1L, new UpdateStatusRequest(targetStatus));
+            WorkOrderResponse response = workOrderService.updateWorkOrderStatus(
+                    1L, new UpdateStatusRequest(targetStatus));
             assertThat(response.getStatus()).isEqualTo(targetStatus);
             verify(workOrderRepository).saveAndFlush(order);
         } else {
@@ -263,7 +267,8 @@ class WorkOrderServiceTest {
 
         when(workOrderRepository.findById(1L)).thenReturn(Optional.of(unassignedOrder));
 
-        assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(1L, new UpdateStatusRequest(WorkOrderStatus.IN_PROGRESS)))
+        assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(
+                1L, new UpdateStatusRequest(WorkOrderStatus.IN_PROGRESS)))
                 .isInstanceOf(InvalidWorkOrderStateException.class)
                 .hasMessageContaining("without an assigned engineer");
 
@@ -275,7 +280,8 @@ class WorkOrderServiceTest {
     void updateWorkOrderStatus_whenNotFound_shouldThrowResourceNotFoundException() {
         when(workOrderRepository.findById(404L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(404L, new UpdateStatusRequest(WorkOrderStatus.IN_PROGRESS)))
+        assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(
+                404L, new UpdateStatusRequest(WorkOrderStatus.IN_PROGRESS)))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("404");
     }
@@ -291,7 +297,8 @@ class WorkOrderServiceTest {
         when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
         when(workOrderRepository.saveAndFlush(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        WorkOrderResponse response = workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("  engineer_bob  "));
+        WorkOrderResponse response = workOrderService.updateAssignment(
+                1L, new UpdateAssignmentRequest("  engineer_bob  "));
 
         assertThat(response.getStatus()).isEqualTo(WorkOrderStatus.OPEN);
         assertThat(response.getAssignedTo()).isEqualTo("engineer_bob");
@@ -308,7 +315,8 @@ class WorkOrderServiceTest {
         when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
         when(workOrderRepository.saveAndFlush(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        WorkOrderResponse response = workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("engineer_alice"));
+        WorkOrderResponse response = workOrderService.updateAssignment(
+                1L, new UpdateAssignmentRequest("engineer_alice"));
 
         assertThat(response.getStatus()).isEqualTo(WorkOrderStatus.IN_PROGRESS);
         assertThat(response.getAssignedTo()).isEqualTo("engineer_alice");
@@ -349,7 +357,8 @@ class WorkOrderServiceTest {
     @ParameterizedTest
     @EnumSource(value = WorkOrderStatus.class, names = {"COMPLETED", "CLOSED"})
     @DisplayName("Modifying assignment in COMPLETED or CLOSED throws InvalidWorkOrderStateException (FR-5)")
-    void updateAssignment_whenCompletedOrClosed_shouldThrowInvalidWorkOrderStateException(WorkOrderStatus terminalStatus) {
+    void updateAssignment_whenCompletedOrClosed_shouldThrowInvalidWorkOrderStateException(
+            WorkOrderStatus terminalStatus) {
         WorkOrder order = new WorkOrder("Title", "Desc", "Eq", "E-1", "Loc", "sup1", "engineer_bob");
         order.setId(1L);
         order.setStatus(terminalStatus);
@@ -368,7 +377,8 @@ class WorkOrderServiceTest {
     void updateAssignment_whenNotFound_shouldThrowResourceNotFoundException() {
         when(workOrderRepository.findById(404L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> workOrderService.updateAssignment(404L, new UpdateAssignmentRequest("engineer_charlie")))
+        assertThatThrownBy(() -> workOrderService.updateAssignment(
+                404L, new UpdateAssignmentRequest("engineer_charlie")))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("404");
     }

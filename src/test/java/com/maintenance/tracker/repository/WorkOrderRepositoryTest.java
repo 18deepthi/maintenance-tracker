@@ -122,7 +122,8 @@ class WorkOrderRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        Specification<WorkOrder> spec = WorkOrderSpecifications.withFilters(WorkOrderStatus.IN_PROGRESS, null, null, null);
+        Specification<WorkOrder> spec = WorkOrderSpecifications
+                .withFilters(WorkOrderStatus.IN_PROGRESS, null, null, null);
         Page<WorkOrder> result = workOrderRepository.findAll(spec, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).hasSize(1);
@@ -164,7 +165,8 @@ class WorkOrderRepositoryTest {
     @Test
     @DisplayName("Filtering by equipmentName performs case-insensitive contains search and escapes wildcards")
     void filterByEquipmentName_shouldPerformContainsAndEscapeWildcards() {
-        WorkOrder order1 = new WorkOrder("WO 1", "Desc", "High Voltage 100% Transformer", "EQ-1", "Loc 1", "sup1", null);
+        WorkOrder order1 = new WorkOrder(
+                "WO 1", "Desc", "High Voltage 100% Transformer", "EQ-1", "Loc 1", "sup1", null);
         WorkOrder order2 = new WorkOrder("WO 2", "Desc", "Standard 100A Transformer", "EQ-2", "Loc 2", "sup1", null);
         WorkOrder order3 = new WorkOrder("WO 3", "Desc", "Feed_Water_Pump", "EQ-3", "Loc 3", "sup1", null);
         WorkOrder order4 = new WorkOrder("WO 4", "Desc", "FeedXWaterYPump", "EQ-4", "Loc 4", "sup1", null);
@@ -205,7 +207,8 @@ class WorkOrderRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        Specification<WorkOrder> spec = WorkOrderSpecifications.withFilters(WorkOrderStatus.OPEN, "eng1", "Transformer A", "TR-A");
+        Specification<WorkOrder> spec = WorkOrderSpecifications
+                .withFilters(WorkOrderStatus.OPEN, "eng1", "Transformer A", "TR-A");
         Page<WorkOrder> result = workOrderRepository.findAll(spec, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).hasSize(1);
