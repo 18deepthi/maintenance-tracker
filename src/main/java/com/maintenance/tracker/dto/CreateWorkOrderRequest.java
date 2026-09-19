@@ -1,5 +1,6 @@
 package com.maintenance.tracker.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -7,27 +8,34 @@ public class CreateWorkOrderRequest {
 
     @NotBlank(message = "Title is required")
     @Size(max = 100, message = "Title must not exceed 100 characters")
+    @Schema(description = "Work order title", example = "HVAC Compressor Overheating")
     private String title;
 
     @Size(max = 2000, message = "Description must not exceed 2000 characters")
+    @Schema(description = "Detailed work order description", example = "Basement chiller compressor trips on high temp")
     private String description;
 
     @NotBlank(message = "Equipment name is required")
     @Size(max = 100, message = "Equipment name must not exceed 100 characters")
+    @Schema(description = "Name of the equipment", example = "Centrifugal Chiller 3")
     private String equipmentName;
 
     @Size(max = 50, message = "Equipment ID must not exceed 50 characters")
+    @Schema(description = "Optional equipment identifier", example = "CHILLER-B-03")
     private String equipmentId;
 
     @NotBlank(message = "Location is required")
     @Size(max = 150, message = "Location must not exceed 150 characters")
+    @Schema(description = "Physical location of the equipment", example = "Building B, Basement Mechanical Room")
     private String location;
 
     @NotBlank(message = "Created by is required")
     @Size(max = 50, message = "Created by must not exceed 50 characters")
+    @Schema(description = "User who created the work order", example = "john.doe")
     private String createdBy;
 
     @Size(max = 50, message = "Assigned to must not exceed 50 characters")
+    @Schema(description = "Optional assigned technician username", example = "jane.smith")
     private String assignedTo;
 
     public CreateWorkOrderRequest() {

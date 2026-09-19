@@ -14,6 +14,7 @@ import com.maintenance.tracker.dto.UpdateStatusRequest;
 import com.maintenance.tracker.dto.UpdateWorkOrderDetailsRequest;
 import com.maintenance.tracker.dto.WorkOrderFilterParams;
 import com.maintenance.tracker.dto.WorkOrderResponse;
+import com.maintenance.tracker.exception.InvalidSortFieldException;
 import com.maintenance.tracker.exception.InvalidWorkOrderStateException;
 import com.maintenance.tracker.exception.ResourceNotFoundException;
 import com.maintenance.tracker.model.WorkOrder;
@@ -207,7 +208,7 @@ class WorkOrderServiceTest {
 
         assertThatThrownBy(() -> workOrderService.updateWorkOrderDetails(2L, updateRequest))
                 .isInstanceOf(InvalidWorkOrderStateException.class)
-                .hasMessageContaining("FR-8")
+                .hasMessageContaining("Updates are permitted only while status is OPEN")
                 .hasMessageContaining(nonOpenStatus.name());
 
         verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
@@ -248,7 +249,7 @@ class WorkOrderServiceTest {
         } else {
             assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(1L, new UpdateStatusRequest(targetStatus)))
                     .isInstanceOf(InvalidWorkOrderStateException.class)
-                    .hasMessageContaining("FR-3, FR-4");
+                    .hasMessageContaining("strictly one step");
             verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
         }
     }
@@ -264,7 +265,6 @@ class WorkOrderServiceTest {
 
         assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(1L, new UpdateStatusRequest(WorkOrderStatus.IN_PROGRESS)))
                 .isInstanceOf(InvalidWorkOrderStateException.class)
-                .hasMessageContaining("FR-5")
                 .hasMessageContaining("without an assigned engineer");
 
         verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
@@ -341,7 +341,6 @@ class WorkOrderServiceTest {
 
         assertThatThrownBy(() -> workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("")))
                 .isInstanceOf(InvalidWorkOrderStateException.class)
-                .hasMessageContaining("FR-5")
                 .hasMessageContaining("unassigned while in OPEN status");
 
         verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
@@ -359,7 +358,6 @@ class WorkOrderServiceTest {
 
         assertThatThrownBy(() -> workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("engineer_charlie")))
                 .isInstanceOf(InvalidWorkOrderStateException.class)
-                .hasMessageContaining("FR-5")
                 .hasMessageContaining("not permitted once COMPLETED or CLOSED");
 
         verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
@@ -373,5 +371,15 @@ class WorkOrderServiceTest {
         assertThatThrownBy(() -> workOrderService.updateAssignment(404L, new UpdateAssignmentRequest("engineer_charlie")))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("404");
+    }
+
+    @Test
+    @DisplayName("listWorkOrders throws InvalidSortFieldException when sort field is not whitelisted")
+    void listWorkOrders_whenInvalidSortField_shouldThrowInvalidSortFieldException() {
+        Pageable pageable = PageRequest.of(0, 20, org.springframework.data.domain.Sort.by("banana"));
+
+        assertThatThrownBy(() -> workOrderService.listWorkOrders(null, pageable))
+                .isInstanceOf(InvalidSortFieldException.class)
+                .hasMessageContaining("banana");
     }
 }

@@ -43,3 +43,15 @@ This document records the architectural and design decisions made throughout the
 ### ADR-007: Composable Query Filtering via JPA Specifications & Wildcard Escaping (FR-9)
 - **Decision**: Implement dynamic query filtering across `status`, `assignedTo`, `equipmentName`, and `equipmentId` using Spring Data `JpaSpecificationExecutor` with composable predicates. Match `equipmentName` using case-insensitive contains (with `%` and `_` wildcard characters escaped to treat them as literals), while matching `equipmentId` and `assignedTo` using exact case-insensitive equality.
 - **Rationale**: Avoids a combinatorial explosion of derived repository query methods, ensures full composability with pagination and sorting, and eliminates SQL injection or accidental wildcard pattern expansion when searching equipment names.
+
+---
+
+### ADR-008: Centralized API Error Handling via RestControllerAdvice (NFR-3)
+- **Decision**: Centralize all application and framework exception handling in `GlobalExceptionHandler` (`@RestControllerAdvice`) extending `ResponseEntityExceptionHandler`. Return a unified `ErrorResponse` schema (`timestamp`, `status`, `error`, `message`, `path`, `fieldErrors`) for client errors (400, 404, 405, 409, 415) and unexpected errors (500). The catch-all handler logs the full exception with stack trace on the server (`logger.error`) while returning a sanitized generic message to clients without exposing internal stack traces, Jackson/Java class names, or requirement IDs.
+- **Rationale**: Establishes a predictable error contract for frontend integration, prevents sensitive implementation detail leakage, and preserves standard Spring framework HTTP statuses (such as 404 for unknown endpoints, 405 for unsupported HTTP methods, and 415 for unsupported media types).
+
+---
+
+### ADR-009: Optimistic Concurrency Control via JPA @Version
+- **Decision**: Add a `@Version Long version` attribute to the `WorkOrder` entity, mapped to a `version` column in the database. When concurrent updates conflict, Spring Data JPA / Hibernate raises an `ObjectOptimisticLockingFailureException`, which is caught and mapped to HTTP 409 Conflict. In v1, clients do not send a version token in request payloads, so conflict detection operates between concurrent server transactions only; client-side ETag / version tokens are deferred to future API iterations.
+- **Rationale**: Prevents silent lost updates and race conditions during concurrent status transitions or assignment updates without requiring heavy database row locking (pessimistic locks), maintaining high throughput and transactional safety.
