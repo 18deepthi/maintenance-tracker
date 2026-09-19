@@ -9,7 +9,10 @@ import static org.mockito.Mockito.when;
 
 import com.maintenance.tracker.dto.CreateWorkOrderRequest;
 import com.maintenance.tracker.dto.PageResponse;
+import com.maintenance.tracker.dto.UpdateAssignmentRequest;
+import com.maintenance.tracker.dto.UpdateStatusRequest;
 import com.maintenance.tracker.dto.UpdateWorkOrderDetailsRequest;
+import com.maintenance.tracker.dto.WorkOrderFilterParams;
 import com.maintenance.tracker.dto.WorkOrderResponse;
 import com.maintenance.tracker.exception.InvalidWorkOrderStateException;
 import com.maintenance.tracker.exception.ResourceNotFoundException;
@@ -17,13 +20,17 @@ import com.maintenance.tracker.model.WorkOrder;
 import com.maintenance.tracker.model.WorkOrderStatus;
 import com.maintenance.tracker.repository.WorkOrderRepository;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -32,6 +39,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class WorkOrderServiceTest {
@@ -41,6 +49,19 @@ class WorkOrderServiceTest {
 
     @InjectMocks
     private WorkOrderService workOrderService;
+
+    static Stream<Arguments> allStatusPairs() {
+        List<Arguments> argumentsList = new ArrayList<>();
+        for (WorkOrderStatus current : WorkOrderStatus.values()) {
+            for (WorkOrderStatus target : WorkOrderStatus.values()) {
+                boolean shouldSucceed = (current == WorkOrderStatus.OPEN && target == WorkOrderStatus.IN_PROGRESS)
+                        || (current == WorkOrderStatus.IN_PROGRESS && target == WorkOrderStatus.COMPLETED)
+                        || (current == WorkOrderStatus.COMPLETED && target == WorkOrderStatus.CLOSED);
+                argumentsList.add(Arguments.of(current, target, shouldSucceed));
+            }
+        }
+        return argumentsList.stream();
+    }
 
     @Test
     @DisplayName("createWorkOrder saves order and returns OPEN status response")
@@ -131,6 +152,20 @@ class WorkOrderServiceTest {
     }
 
     @Test
+    @DisplayName("listWorkOrders with filter parameters invokes specification search")
+    void listWorkOrders_withFilters_shouldPassSpecificationToRepository() {
+        WorkOrderFilterParams filters = new WorkOrderFilterParams(WorkOrderStatus.OPEN, "eng1", "Pump", "EQ-1");
+        Page<WorkOrder> page = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+
+        when(workOrderRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
+
+        PageResponse<WorkOrderResponse> result = workOrderService.listWorkOrders(filters, PageRequest.of(0, 20));
+
+        assertThat(result).isNotNull();
+        verify(workOrderRepository).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    @Test
     @DisplayName("updateWorkOrderDetails updates details when work order is in OPEN status (FR-8)")
     void updateWorkOrderDetails_whenStatusIsOpen_shouldUpdateAndReturnResponse() {
         WorkOrder existing = new WorkOrder("Old Title", "Old Desc", "Old Eq", "E-old", "Loc Old", "sup1", null);
@@ -188,6 +223,154 @@ class WorkOrderServiceTest {
         when(workOrderRepository.findById(404L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> workOrderService.updateWorkOrderDetails(404L, updateRequest))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("404");
+    }
+
+    // 16-pair exhaustive parameterized matrix test (FR-3, FR-4)
+    @ParameterizedTest(name = "Transition from {0} to {1} should succeed: {2}")
+    @MethodSource("allStatusPairs")
+    @DisplayName("16-pair status transition matrix: only OPEN->IN_PROGRESS, IN_PROGRESS->COMPLETED, COMPLETED->CLOSED succeed")
+    void updateWorkOrderStatus_allStatusPairs_shouldEnforceStrictOneWayTransitions(
+            WorkOrderStatus currentStatus, WorkOrderStatus targetStatus, boolean shouldSucceed) {
+
+        WorkOrder order = new WorkOrder("Title", "Desc", "Eq", "E-1", "Loc", "sup1", "engineer_1");
+        order.setId(1L);
+        order.setStatus(currentStatus);
+
+        when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        if (shouldSucceed) {
+            when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+            WorkOrderResponse response = workOrderService.updateWorkOrderStatus(1L, new UpdateStatusRequest(targetStatus));
+            assertThat(response.getStatus()).isEqualTo(targetStatus);
+            verify(workOrderRepository).save(order);
+        } else {
+            assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(1L, new UpdateStatusRequest(targetStatus)))
+                    .isInstanceOf(InvalidWorkOrderStateException.class)
+                    .hasMessageContaining("FR-3, FR-4");
+            verify(workOrderRepository, never()).save(any(WorkOrder.class));
+        }
+    }
+
+    @Test
+    @DisplayName("Transitioning to IN_PROGRESS without an assignee throws InvalidWorkOrderStateException (FR-5)")
+    void updateWorkOrderStatus_toInProgressWithoutAssignee_shouldThrowInvalidWorkOrderStateException() {
+        WorkOrder unassignedOrder = new WorkOrder("Title", "Desc", "Eq", "E-1", "Loc", "sup1", null);
+        unassignedOrder.setId(1L);
+        unassignedOrder.setStatus(WorkOrderStatus.OPEN);
+
+        when(workOrderRepository.findById(1L)).thenReturn(Optional.of(unassignedOrder));
+
+        assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(1L, new UpdateStatusRequest(WorkOrderStatus.IN_PROGRESS)))
+                .isInstanceOf(InvalidWorkOrderStateException.class)
+                .hasMessageContaining("FR-5")
+                .hasMessageContaining("without an assigned engineer");
+
+        verify(workOrderRepository, never()).save(any(WorkOrder.class));
+    }
+
+    @Test
+    @DisplayName("updateWorkOrderStatus throws ResourceNotFoundException when order does not exist")
+    void updateWorkOrderStatus_whenNotFound_shouldThrowResourceNotFoundException() {
+        when(workOrderRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(404L, new UpdateStatusRequest(WorkOrderStatus.IN_PROGRESS)))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("404");
+    }
+
+    // Assignment rule tests (FR-5)
+    @Test
+    @DisplayName("Assigning an OPEN work order preserves OPEN status and sets trimmed assignee")
+    void updateAssignment_whenOpen_shouldPreserveOpenStatusAndTrim() {
+        WorkOrder order = new WorkOrder("Title", "Desc", "Eq", "E-1", "Loc", "sup1", null);
+        order.setId(1L);
+        order.setStatus(WorkOrderStatus.OPEN);
+
+        when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        WorkOrderResponse response = workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("  engineer_bob  "));
+
+        assertThat(response.getStatus()).isEqualTo(WorkOrderStatus.OPEN);
+        assertThat(response.getAssignedTo()).isEqualTo("engineer_bob");
+        verify(workOrderRepository).save(order);
+    }
+
+    @Test
+    @DisplayName("Reassigning an IN_PROGRESS work order preserves IN_PROGRESS status")
+    void updateAssignment_whenInProgress_shouldPreserveInProgressStatus() {
+        WorkOrder order = new WorkOrder("Title", "Desc", "Eq", "E-1", "Loc", "sup1", "engineer_bob");
+        order.setId(1L);
+        order.setStatus(WorkOrderStatus.IN_PROGRESS);
+
+        when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        WorkOrderResponse response = workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("engineer_alice"));
+
+        assertThat(response.getStatus()).isEqualTo(WorkOrderStatus.IN_PROGRESS);
+        assertThat(response.getAssignedTo()).isEqualTo("engineer_alice");
+    }
+
+    @Test
+    @DisplayName("Unassigning with null or whitespace is permitted when status is OPEN")
+    void updateAssignment_unassignWhenOpen_shouldSetAssigneeToNull() {
+        WorkOrder order = new WorkOrder("Title", "Desc", "Eq", "E-1", "Loc", "sup1", "engineer_bob");
+        order.setId(1L);
+        order.setStatus(WorkOrderStatus.OPEN);
+
+        when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        WorkOrderResponse response = workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("   "));
+
+        assertThat(response.getStatus()).isEqualTo(WorkOrderStatus.OPEN);
+        assertThat(response.getAssignedTo()).isNull();
+    }
+
+    @Test
+    @DisplayName("Unassigning while IN_PROGRESS throws InvalidWorkOrderStateException (FR-5)")
+    void updateAssignment_unassignWhenInProgress_shouldThrowInvalidWorkOrderStateException() {
+        WorkOrder order = new WorkOrder("Title", "Desc", "Eq", "E-1", "Loc", "sup1", "engineer_bob");
+        order.setId(1L);
+        order.setStatus(WorkOrderStatus.IN_PROGRESS);
+
+        when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("")))
+                .isInstanceOf(InvalidWorkOrderStateException.class)
+                .hasMessageContaining("FR-5")
+                .hasMessageContaining("unassigned while in OPEN status");
+
+        verify(workOrderRepository, never()).save(any(WorkOrder.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = WorkOrderStatus.class, names = {"COMPLETED", "CLOSED"})
+    @DisplayName("Modifying assignment in COMPLETED or CLOSED throws InvalidWorkOrderStateException (FR-5)")
+    void updateAssignment_whenCompletedOrClosed_shouldThrowInvalidWorkOrderStateException(WorkOrderStatus terminalStatus) {
+        WorkOrder order = new WorkOrder("Title", "Desc", "Eq", "E-1", "Loc", "sup1", "engineer_bob");
+        order.setId(1L);
+        order.setStatus(terminalStatus);
+
+        when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("engineer_charlie")))
+                .isInstanceOf(InvalidWorkOrderStateException.class)
+                .hasMessageContaining("FR-5")
+                .hasMessageContaining("not permitted once COMPLETED or CLOSED");
+
+        verify(workOrderRepository, never()).save(any(WorkOrder.class));
+    }
+
+    @Test
+    @DisplayName("updateAssignment throws ResourceNotFoundException when work order does not exist")
+    void updateAssignment_whenNotFound_shouldThrowResourceNotFoundException() {
+        when(workOrderRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> workOrderService.updateAssignment(404L, new UpdateAssignmentRequest("engineer_charlie")))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("404");
     }
