@@ -19,3 +19,15 @@ This document records the architectural and design decisions made throughout the
 ### ADR-003: Checkstyle Integration with Phased Enforcement
 - **Decision**: Integrate `maven-checkstyle-plugin` with standard formatting and import conventions, configured initially with `failOnViolation=false` during early development.
 - **Rationale**: Establishes visibility into code consistency and formatting standards without impeding early architectural prototyping, with strict build failure enforcement planned for the GitHub Actions CI pipeline in Phase 4.
+
+---
+
+### ADR-004: Detail Modification Safeguards via Status Check (FR-8)
+- **Decision**: Enforce that core work order details (title, description, equipmentName, equipmentId, location) can be modified strictly while the status is `OPEN`, rejecting updates in subsequent states with HTTP 409 Conflict.
+- **Rationale**: Preserves audit integrity by ensuring work order parameters cannot be altered once execution begins in the field, preventing discrepancies between logged scope and physical maintenance.
+
+---
+
+### ADR-005: Custom PageResponse DTO & Page Size Upper Bound
+- **Decision**: Encapsulate paginated list responses inside a dedicated `PageResponse<T>` DTO rather than returning Spring Data's `Page<T>` directly, while clamping page size to a maximum of 100 in the service layer.
+- **Rationale**: Decouples API client contracts from Spring-specific serialization formats, prevents unexpected contract breakage on framework upgrades, and safeguards server memory against unbounded query loads.
