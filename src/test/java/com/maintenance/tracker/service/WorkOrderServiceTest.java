@@ -179,7 +179,7 @@ class WorkOrderServiceTest {
         );
 
         when(workOrderRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(workOrderRepository.saveAndFlush(any(WorkOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         WorkOrderResponse updatedResponse = workOrderService.updateWorkOrderDetails(1L, updateRequest);
 
@@ -188,7 +188,7 @@ class WorkOrderServiceTest {
         assertThat(updatedResponse.getEquipmentName()).isEqualTo("New Eq");
         assertThat(updatedResponse.getEquipmentId()).isEqualTo("E-new");
         assertThat(updatedResponse.getLocation()).isEqualTo("Loc New");
-        verify(workOrderRepository).save(existing);
+        verify(workOrderRepository).saveAndFlush(existing);
     }
 
     @ParameterizedTest
@@ -210,7 +210,7 @@ class WorkOrderServiceTest {
                 .hasMessageContaining("FR-8")
                 .hasMessageContaining(nonOpenStatus.name());
 
-        verify(workOrderRepository, never()).save(any(WorkOrder.class));
+        verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
     }
 
     @Test
@@ -241,15 +241,15 @@ class WorkOrderServiceTest {
         when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
 
         if (shouldSucceed) {
-            when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(workOrderRepository.saveAndFlush(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
             WorkOrderResponse response = workOrderService.updateWorkOrderStatus(1L, new UpdateStatusRequest(targetStatus));
             assertThat(response.getStatus()).isEqualTo(targetStatus);
-            verify(workOrderRepository).save(order);
+            verify(workOrderRepository).saveAndFlush(order);
         } else {
             assertThatThrownBy(() -> workOrderService.updateWorkOrderStatus(1L, new UpdateStatusRequest(targetStatus)))
                     .isInstanceOf(InvalidWorkOrderStateException.class)
                     .hasMessageContaining("FR-3, FR-4");
-            verify(workOrderRepository, never()).save(any(WorkOrder.class));
+            verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
         }
     }
 
@@ -267,7 +267,7 @@ class WorkOrderServiceTest {
                 .hasMessageContaining("FR-5")
                 .hasMessageContaining("without an assigned engineer");
 
-        verify(workOrderRepository, never()).save(any(WorkOrder.class));
+        verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
     }
 
     @Test
@@ -289,13 +289,13 @@ class WorkOrderServiceTest {
         order.setStatus(WorkOrderStatus.OPEN);
 
         when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
-        when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(workOrderRepository.saveAndFlush(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WorkOrderResponse response = workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("  engineer_bob  "));
 
         assertThat(response.getStatus()).isEqualTo(WorkOrderStatus.OPEN);
         assertThat(response.getAssignedTo()).isEqualTo("engineer_bob");
-        verify(workOrderRepository).save(order);
+        verify(workOrderRepository).saveAndFlush(order);
     }
 
     @Test
@@ -306,7 +306,7 @@ class WorkOrderServiceTest {
         order.setStatus(WorkOrderStatus.IN_PROGRESS);
 
         when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
-        when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(workOrderRepository.saveAndFlush(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WorkOrderResponse response = workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("engineer_alice"));
 
@@ -322,7 +322,7 @@ class WorkOrderServiceTest {
         order.setStatus(WorkOrderStatus.OPEN);
 
         when(workOrderRepository.findById(1L)).thenReturn(Optional.of(order));
-        when(workOrderRepository.save(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(workOrderRepository.saveAndFlush(any(WorkOrder.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WorkOrderResponse response = workOrderService.updateAssignment(1L, new UpdateAssignmentRequest("   "));
 
@@ -344,7 +344,7 @@ class WorkOrderServiceTest {
                 .hasMessageContaining("FR-5")
                 .hasMessageContaining("unassigned while in OPEN status");
 
-        verify(workOrderRepository, never()).save(any(WorkOrder.class));
+        verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
     }
 
     @ParameterizedTest
@@ -362,7 +362,7 @@ class WorkOrderServiceTest {
                 .hasMessageContaining("FR-5")
                 .hasMessageContaining("not permitted once COMPLETED or CLOSED");
 
-        verify(workOrderRepository, never()).save(any(WorkOrder.class));
+        verify(workOrderRepository, never()).saveAndFlush(any(WorkOrder.class));
     }
 
     @Test

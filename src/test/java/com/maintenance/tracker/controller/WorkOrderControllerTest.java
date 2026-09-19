@@ -149,7 +149,9 @@ class WorkOrderControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(1L))
                 .andExpect(jsonPath("$.page").value(0))
-                .andExpect(jsonPath("$.size").value(20));
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
 
         ArgumentCaptor<WorkOrderFilterParams> captor = ArgumentCaptor.forClass(WorkOrderFilterParams.class);
         verify(workOrderService).listWorkOrders(captor.capture(), any(Pageable.class));

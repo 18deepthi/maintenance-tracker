@@ -113,7 +113,7 @@ public class WorkOrderService {
         workOrder.setEquipmentId(request.getEquipmentId());
         workOrder.setLocation(request.getLocation());
 
-        WorkOrder updated = workOrderRepository.save(workOrder);
+        WorkOrder updated = workOrderRepository.saveAndFlush(workOrder);
         return WorkOrderResponse.fromEntity(updated);
     }
 
@@ -143,7 +143,7 @@ public class WorkOrderService {
         }
 
         workOrder.setStatus(targetStatus);
-        WorkOrder updated = workOrderRepository.save(workOrder);
+        WorkOrder updated = workOrderRepository.saveAndFlush(workOrder);
         return WorkOrderResponse.fromEntity(updated);
     }
 
@@ -175,7 +175,7 @@ public class WorkOrderService {
         }
 
         workOrder.setAssignedTo(trimmedAssignee);
-        WorkOrder updated = workOrderRepository.save(workOrder);
+        WorkOrder updated = workOrderRepository.saveAndFlush(workOrder);
         return WorkOrderResponse.fromEntity(updated);
     }
 }
